@@ -14,6 +14,32 @@ about what is worth recording.
 
 ## Entries
 
+### Digits 1-4 Jump Straight To A Panel — 2026-08-24
+
+**Asked:** "travelling between these panes using arrows is very slow" — clarified as "i mean i don't wanna
+press arrows something a faster option", i.e. ergonomics, not input lag.
+
+**Did:** Added `Action::GotoProjects/GotoWorktrees/GotoSessions/GotoTerminal` to
+`crates/nebula-tui/src/keymap.rs` (NAVIGATE group, defaults `1`/`2`/`3`/`4`) with one-line handler arms in
+`event_loop.rs` next to `Action::Hosts`. Test `digits_jump_straight_to_a_panel` in `event_loop.rs`.
+Rejected vim `h`/`l` — both are taken (`h` ssh host, `l` link).
+
+**Gotchas:**
+- **`4` deliberately crosses into the terminal pane, where `→` refuses to.** `Action::FocusRight`
+  stops at Sessions on purpose (the comment at the handler says entering the pane means choosing a
+  session, which is Enter's job). A digit names a destination rather than taking a step, so it goes where
+  you named — focused but *not* input-locked. Don't "fix" this to match FocusRight.
+- `Action::FocusTerminal` (`ctrl+→`) is **not** a jump despite its name and hint — its handler steps one
+  panel right, so from Projects it lands on Worktrees. That's why the digits needed their own actions
+  rather than an extra default on it.
+- Digits were completely free in `Scope::Global`, and the settings overlay already uses them the same way
+  (`digits_jump_straight_to_a_tab`) — same muscle memory, no conflict, since the overlay is its own scope.
+  When the terminal pane is input-locked, digits still reach the pty; only `^q` brings them back.
+- The Hotkeys settings tab is generated from `keymap::ACTIONS` (`config.rs:293`), so new actions appear
+  and become rebindable with no extra wiring.
+- Confirmed again today: `e2e_tui::tui_projects_worktrees_agents_navigation` still fails on `"Ctrl+q:
+  panels"` vs the rendered `^q: panels`, independent of this change. See the v0.3.0 entry below.
+
 ### Shift+G Opens The Repo's Git Host, Released As v0.3.0 — 2026-08-24
 
 **Asked:** "is there a release skill in this repo?", then "commit and push and do another release", then

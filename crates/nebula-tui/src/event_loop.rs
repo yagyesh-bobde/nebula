@@ -822,6 +822,13 @@ fn handle_key(app: &mut App, key: KeyEvent, out: &mut Vec<ClientRequest>) {
                 Focus::Terminal => Focus::Sessions,
             }
         }
+        // 1-4 name a panel outright, so they land there from anywhere —
+        // including 4 into the terminal pane, which FocusRight refuses to
+        // cross. Focus only; Enter is still what locks input to the pty.
+        Action::GotoProjects => app.focus = Focus::Projects,
+        Action::GotoWorktrees => app.focus = Focus::Worktrees,
+        Action::GotoSessions => app.focus = Focus::Sessions,
+        Action::GotoTerminal => app.focus = Focus::Terminal,
         Action::Hosts => open_hosts_picker(app),
         // Ctrl+→ still reaches the terminal pane (the counterpart of the
         // Ctrl+← escape hatch).
@@ -8565,6 +8572,31 @@ mod tests {
         assert_eq!(app.focus, Focus::Terminal, "Cmd+Left does not escape");
         assert!(app.term_locked, "Cmd+Left keeps the input lock");
         assert!(out.is_empty(), "Cmd+Left has no legacy pty encoding");
+    }
+
+    #[test]
+    fn digits_jump_straight_to_a_panel() {
+        let mut app = App::new();
+        seed_tree(&mut app);
+        let mut out = Vec::new();
+
+        // Every digit lands from every starting panel, not one step toward it.
+        for (key, want) in [
+            ('3', Focus::Sessions),
+            ('1', Focus::Projects),
+            ('4', Focus::Terminal),
+            ('2', Focus::Worktrees),
+            ('4', Focus::Terminal),
+        ] {
+            press(&mut app, KeyCode::Char(key), KeyModifiers::NONE, &mut out);
+            assert_eq!(app.focus, want, "{key} should land on {want:?}");
+        }
+
+        // 4 focuses the pane without locking input to it — arrows still
+        // navigate, exactly as they do after Tab.
+        press(&mut app, KeyCode::Left, KeyModifiers::NONE, &mut out);
+        assert_eq!(app.focus, Focus::Sessions, "4 focuses but never locks");
+        assert!(out.is_empty(), "no input reached the pty");
     }
 
     #[test]
